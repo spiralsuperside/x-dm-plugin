@@ -11,13 +11,15 @@ function nextScheduled(at: Date, offsetMinutes: number): string {
 }
 
 export const runRepo = {
-  async create(campaignId: Id, correlationId: string): Promise<Run> {
+  async create(campaignId: Id, correlationId: string, options?: { requiresConfirmation?: boolean; confirmationPhrase?: string }): Promise<Run> {
     const now = nowIso();
     const run: Run = {
       id: crypto.randomUUID(),
       campaignId,
       status: "queued",
       correlationId,
+      requiresConfirmation: options?.requiresConfirmation ?? true,
+      confirmationPhrase: options?.confirmationPhrase ?? "SEND NOW",
       summary: {
         queued: 0,
         sent: 0,
@@ -178,6 +180,12 @@ export const runRepo = {
 
   async listByRun(runId: Id): Promise<RunAction[]> {
     return db.runActions.where("runId").equals(runId).sortBy("sequence");
+  },
+
+  async countSentLastHour(campaignId: Id): Promise<number> {
+    const oneHourAgoIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const actions = await db.runActions.where("campaignId").equals(campaignId).toArray();
+    return actions.filter((a) => a.status === "done" && a.updatedAt >= oneHourAgoIso && a.actionType === "send_dm").length;
   },
 
   async listRecentSentMessages(campaignId: Id, limit: number): Promise<string[]> {

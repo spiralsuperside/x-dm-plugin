@@ -39,6 +39,23 @@ function deterministicDelaySeconds(seedSource: string, minSec: number, maxSec: n
   return Math.floor(min + normalized * (max - min));
 }
 
+function warmupRampMultiplier(index: number, safeMode: boolean): number {
+  if (!safeMode) {
+    return 1;
+  }
+  if (index < 10) {
+    return 2;
+  }
+  if (index < 25) {
+    return 1.5;
+  }
+  return 1;
+}
+
+function createRunConfirmationPhrase(runCorrelationId: string): string {
+  return `START-${runCorrelationId.slice(0, 6).toUpperCase()}`;
+}
+
 const handlers: { [T in CommandType]: CommandHandler<T> } = {
   "project.create": async () => ({ projectId: crypto.randomUUID() }),
   "project.load": async () => ({ ok: true }),
@@ -163,14 +180,17 @@ const handlers: { [T in CommandType]: CommandHandler<T> } = {
 
   "run.create": async (payload) => {
     const correlationId = crypto.randomUUID();
-    const run = await runRepo.create(payload.campaignId, correlationId);
+    const settings = await chromeSettingsStore.get();
+    const run = await runRepo.create(payload.campaignId, correlationId, {
+      requiresConfirmation: settings.requireRunStartConfirmation,
+      confirmationPhrase: settings.requireRunStartConfirmation ? createRunConfirmationPhrase(correlationId) : "SEND NOW"
+    });
     const campaign = await campaignRepo.get(payload.campaignId);
     if (!campaign) {
       throw new Error("Campaign not found");
     }
     const template = await templateRepo.getByCampaign(payload.campaignId);
     const contacts = await contactRepo.listByCampaign(payload.campaignId);
-    const settings = await chromeSettingsStore.get();
     const actions: Array<{
       contactId: string;
       actionType: "warmup_like" | "send_dm" | "follow_up";
@@ -195,22 +215,24 @@ const handlers: { [T in CommandType]: CommandHandler<T> } = {
           delayMinutes: Math.floor(delaySecondsAccumulator / 60)
         });
       }
-      delaySecondsAccumulator += deterministicDelaySeconds(
+      const sendDelay = deterministicDelaySeconds(
         `${contact.id}:${correlationId}`,
         settings.minDelaySec,
         settings.maxDelaySec
       );
+      delaySecondsAccumulator += Math.floor(sendDelay * warmupRampMultiplier(actions.length, settings.safeMode));
       actions.push({
         contactId: contact.id,
         actionType: "send_dm",
         renderedMessage: rendered,
         delayMinutes: Math.floor(delaySecondsAccumulator / 60)
       });
-      delaySecondsAccumulator += deterministicDelaySeconds(
+      const followupDelay = deterministicDelaySeconds(
         `${contact.id}:followup:${correlationId}`,
         settings.minDelaySec,
         settings.maxDelaySec
       );
+      delaySecondsAccumulator += Math.floor(followupDelay * warmupRampMultiplier(actions.length, settings.safeMode));
       actions.push({
         contactId: contact.id,
         actionType: "follow_up",
@@ -240,32 +262,105 @@ const handlers: { [T in CommandType]: CommandHandler<T> } = {
 
   "run.start": async (payload) => {
     await ensureQueueAlarm();
+    const existing = await runRepo.get(payload.runId);
+    if (!existing) {
+      throw new Error(`Run ${payload.runId} not found`);
+    }
+    if (existing.requiresConfirmation) {
+      const provided = payload.confirmationText?.trim().toUpperCase() ?? "";
+      if (provided !== existing.confirmationPhrase.toUpperCase()) {
+        throw new Error(`Run start confirmation mismatch. Type ${existing.confirmationPhrase} to start.`);
+      }
+    }
     const run = await runRepo.update(payload.runId, {
       status: "precheck",
+      confirmedAt: nowIso(),
       startedAt: nowIso()
+    });
+    await eventRepo.log({
+      runId: run.id,
+      campaignId: run.campaignId,
+      type: "run_started",
+      correlationId: run.correlationId,
+      data: {
+        requiresConfirmation: run.requiresConfirmation
+      }
     });
     await publishWorkerEvent("run.status.changed", { runId: run.id, status: run.status });
     return { run };
   },
   "run.pause": async (payload) => {
     const run = await runRepo.update(payload.runId, { status: "paused" });
+    await eventRepo.log({
+      runId: run.id,
+      campaignId: run.campaignId,
+      type: "run_paused",
+      correlationId: run.correlationId,
+      data: {}
+    });
     await publishWorkerEvent("run.status.changed", { runId: run.id, status: run.status });
     return { run };
   },
   "run.cancel": async (payload) => {
     await runRepo.cancelPendingActionsForRun(payload.runId);
     const run = await runRepo.update(payload.runId, { status: "canceled", finishedAt: nowIso() });
+    await eventRepo.log({
+      runId: run.id,
+      campaignId: run.campaignId,
+      type: "run_canceled",
+      correlationId: run.correlationId,
+      data: {}
+    });
     await publishWorkerEvent("run.status.changed", { runId: run.id, status: run.status });
     return { run };
   },
   "run.retry": async (payload) => {
     const requeuedActions = await runRepo.retryErroredActions(payload.runId);
     const run = await runRepo.update(payload.runId, {
-      status: "precheck",
+      status: "queued",
+      confirmedAt: undefined,
       finishedAt: undefined
+    });
+    await eventRepo.log({
+      runId: run.id,
+      campaignId: run.campaignId,
+      type: "run_retried",
+      correlationId: run.correlationId,
+      data: {
+        requeuedActions
+      }
     });
     await publishWorkerEvent("run.status.changed", { runId: run.id, status: run.status });
     return { run, requeuedActions };
+  },
+  "run.emergency.stop": async () => {
+    const runs = await runRepo.list();
+    let affectedRuns = 0;
+    for (const run of runs) {
+      if (
+        run.status === "precheck" ||
+        run.status === "warming" ||
+        run.status === "sending" ||
+        run.status === "rate_limited" ||
+        run.status === "queued"
+      ) {
+        await runRepo.cancelPendingActionsForRun(run.id);
+        const updated = await runRepo.update(run.id, {
+          status: "paused",
+          finishedAt: nowIso()
+        });
+        affectedRuns += 1;
+        await eventRepo.log({
+          runId: updated.id,
+          campaignId: updated.campaignId,
+          type: "run_emergency_stopped",
+          correlationId: updated.correlationId,
+          data: {}
+        });
+        await publishWorkerEvent("run.status.changed", { runId: updated.id, status: updated.status });
+      }
+    }
+    return { affectedRuns };
   },
   "run.list": async (payload) => {
     const runs = await runRepo.list(payload.campaignId);

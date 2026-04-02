@@ -3,14 +3,17 @@ import type { RuntimeSettings } from "../../types/entities";
 const SETTINGS_KEY = "runtimeSettings.v1";
 
 export const defaultSettings: RuntimeSettings = {
-  integrationMode: "demo",
+  integrationMode: "browser_native",
   companionApiBaseUrl: "http://localhost:8787",
-  dailyHardCap: 50,
-  perMinuteCap: 10,
-  minDelaySec: 25,
-  maxDelaySec: 95,
+  safeMode: true,
+  dailyHardCap: 40,
+  hourlyHardCap: 12,
+  perMinuteCap: 2,
+  minDelaySec: 35,
+  maxDelaySec: 120,
   warmupEnabled: true,
   followupDelayMinutes: 180,
+  requireRunStartConfirmation: true,
   stopOnRateLimit: true,
   messageSimilarityThreshold: 0.92,
   retentionDays: 90,
@@ -20,8 +23,15 @@ export const defaultSettings: RuntimeSettings = {
 export const chromeSettingsStore = {
   async get(): Promise<RuntimeSettings> {
     const result = await chrome.storage.local.get(SETTINGS_KEY);
-    const settings = result[SETTINGS_KEY] as RuntimeSettings | undefined;
-    return settings ?? defaultSettings;
+    const settings = result[SETTINGS_KEY] as Partial<RuntimeSettings> | undefined;
+    const merged: RuntimeSettings = {
+      ...defaultSettings,
+      ...(settings ?? {})
+    };
+    if ((settings as { integrationMode?: string } | undefined)?.integrationMode === "api") {
+      merged.integrationMode = "browser_native";
+    }
+    return merged;
   },
 
   async set(patch: Partial<RuntimeSettings>): Promise<RuntimeSettings> {
@@ -29,6 +39,9 @@ export const chromeSettingsStore = {
     const merged = { ...current, ...patch };
     const next: RuntimeSettings = {
       ...merged,
+      dailyHardCap: Math.max(1, merged.dailyHardCap),
+      hourlyHardCap: Math.max(1, merged.hourlyHardCap),
+      perMinuteCap: Math.max(1, merged.perMinuteCap),
       minDelaySec: Math.max(0, merged.minDelaySec),
       maxDelaySec: Math.max(Math.max(0, merged.minDelaySec), merged.maxDelaySec),
       messageSimilarityThreshold: Math.max(0.5, Math.min(1, merged.messageSimilarityThreshold)),

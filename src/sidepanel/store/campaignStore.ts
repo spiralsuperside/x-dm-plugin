@@ -25,10 +25,11 @@ interface CampaignState {
   saveTemplate: () => Promise<void>;
   renderPreview: (name: string) => Promise<void>;
   createRun: () => Promise<void>;
-  startRun: (runId: string) => Promise<void>;
+  startRun: (runId: string, confirmationText?: string) => Promise<void>;
   pauseRun: (runId: string) => Promise<void>;
   cancelRun: (runId: string) => Promise<void>;
   retryRun: (runId: string) => Promise<void>;
+  emergencyStopRuns: () => Promise<void>;
 }
 
 export const useCampaignStore = create<CampaignState>((set, get) => ({
@@ -148,8 +149,8 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
     await get().selectCampaign(campaignId);
   },
 
-  startRun: async (runId) => {
-    await sendCommand("run.start", { runId });
+  startRun: async (runId, confirmationText) => {
+    await sendCommand("run.start", { runId, confirmationText });
     const campaignId = get().selectedCampaignId;
     if (campaignId) {
       await get().selectCampaign(campaignId);
@@ -174,6 +175,14 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
 
   retryRun: async (runId) => {
     await sendCommand("run.retry", { runId });
+    const campaignId = get().selectedCampaignId;
+    if (campaignId) {
+      await get().selectCampaign(campaignId);
+    }
+  },
+
+  emergencyStopRuns: async () => {
+    await sendCommand("run.emergency.stop", {});
     const campaignId = get().selectedCampaignId;
     if (campaignId) {
       await get().selectCampaign(campaignId);

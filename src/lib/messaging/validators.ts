@@ -18,6 +18,7 @@ const commandTypes: CommandType[] = [
   "run.pause",
   "run.cancel",
   "run.retry",
+  "run.emergency.stop",
   "run.list",
   "settings.get",
   "settings.update"

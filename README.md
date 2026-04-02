@@ -12,6 +12,7 @@ Local-first Chrome Extension (Manifest V3) for X (Twitter) and Reddit DM outreac
 - Run queue orchestration with warm-up, send, and follow-up actions.
 - Safety controls: daily/per-minute caps, natural delays, message-similarity linting, first-message link blocking, and rate-limit cooldown handling.
 - Local persistence with IndexedDB + `chrome.storage.local`.
+- Browser-native send mode (`browser_native`) that dispatches from the logged-in X/Reddit tab session (no API key in extension request path).
 
 ## Architecture
 
@@ -37,4 +38,5 @@ cmd /c "set npm_config_cache=.npm-cache&& npm run test"
 ## Notes
 
 - This repo is a local demo-first implementation.
+- Browser-native mode is unofficial web automation behavior and depends on platform DOM/UI selectors and active logged-in tab state.
 - Production hardening should add stricter policy controls, comprehensive observability, and optional companion-backend routing for sensitive integrations.

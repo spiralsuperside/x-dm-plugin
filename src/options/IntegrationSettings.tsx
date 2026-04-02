@@ -8,7 +8,7 @@ interface Props {
 }
 
 export function IntegrationSettings({ settings, onSaved }: Props) {
-  const [mode, setMode] = useState<"demo" | "api">("demo");
+  const [mode, setMode] = useState<"demo" | "browser_native">("browser_native");
   const [baseUrl, setBaseUrl] = useState("http://localhost:8787");
 
   useEffect(() => {
@@ -34,13 +34,13 @@ export function IntegrationSettings({ settings, onSaved }: Props) {
       <h3>Integration</h3>
       <label>
         Mode:
-        <select value={mode} onChange={(event) => setMode(event.target.value as "demo" | "api")}>
+        <select value={mode} onChange={(event) => setMode(event.target.value as "demo" | "browser_native")}>
           <option value="demo">Demo</option>
-          <option value="api">API</option>
+          <option value="browser_native">Browser Native</option>
         </select>
       </label>
       <label>
-        Companion API:
+        Companion API (legacy/fallback):
         <input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
       </label>
       <button onClick={() => void save()}>Save Integration Settings</button>

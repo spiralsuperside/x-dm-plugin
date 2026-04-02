@@ -18,6 +18,7 @@ export type CommandType =
   | "run.pause"
   | "run.cancel"
   | "run.retry"
+  | "run.emergency.stop"
   | "run.list"
   | "settings.get"
   | "settings.update";
@@ -70,10 +71,11 @@ export type CommandPayloadMap = {
   "template.get": { campaignId: Id };
   "template.preview.render": { templateBody: string; name: string; seed?: number };
   "run.create": { campaignId: Id };
-  "run.start": { runId: Id };
+  "run.start": { runId: Id; confirmationText?: string };
   "run.pause": { runId: Id };
   "run.cancel": { runId: Id };
   "run.retry": { runId: Id };
+  "run.emergency.stop": {};
   "run.list": { campaignId?: Id };
   "settings.get": {};
   "settings.update": { patch: Partial<RuntimeSettings> };
@@ -97,6 +99,7 @@ export type CommandResponseMap = {
   "run.pause": { run: Run };
   "run.cancel": { run: Run };
   "run.retry": { run: Run; requeuedActions: number };
+  "run.emergency.stop": { affectedRuns: number };
   "run.list": { runs: Run[] };
   "settings.get": { settings: RuntimeSettings };
   "settings.update": { settings: RuntimeSettings };

@@ -71,6 +71,9 @@ export interface Run extends SchemaMeta {
   campaignId: Id;
   status: RunStatus;
   correlationId: string;
+  requiresConfirmation: boolean;
+  confirmationPhrase: string;
+  confirmedAt?: string;
   startedAt?: string;
   finishedAt?: string;
   rateLimitCooldownUntil?: string;
@@ -122,7 +125,7 @@ export interface RateLimitSignal extends SchemaMeta {
 export interface IntegrationAccount extends SchemaMeta {
   id: Id;
   platform: Platform;
-  mode: "demo" | "api";
+  mode: "demo" | "browser_native";
   tokenRef?: string;
   enabled: boolean;
 }
@@ -134,6 +137,10 @@ export interface AnalyticsEvent extends SchemaMeta {
   type:
     | "run_created"
     | "run_started"
+    | "run_paused"
+    | "run_canceled"
+    | "run_retried"
+    | "run_emergency_stopped"
     | "action_sent"
     | "action_skipped"
     | "action_failed"
@@ -146,14 +153,17 @@ export interface AnalyticsEvent extends SchemaMeta {
 }
 
 export interface RuntimeSettings {
-  integrationMode: "demo" | "api";
+  integrationMode: "demo" | "browser_native";
   companionApiBaseUrl: string;
+  safeMode: boolean;
   dailyHardCap: number;
+  hourlyHardCap: number;
   perMinuteCap: number;
   minDelaySec: number;
   maxDelaySec: number;
   warmupEnabled: boolean;
   followupDelayMinutes: number;
+  requireRunStartConfirmation: boolean;
   stopOnRateLimit: boolean;
   messageSimilarityThreshold: number;
   retentionDays: number;

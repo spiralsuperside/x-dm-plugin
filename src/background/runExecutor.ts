@@ -4,27 +4,25 @@ import { campaignRepo } from "../lib/storage/repositories/campaignRepo";
 import { eventRepo } from "../lib/storage/repositories/eventRepo";
 import { chromeSettingsStore } from "../lib/storage/chromeSettingsStore";
 import { lintMessageRisk } from "../lib/security/messageRiskLint";
-import { enforceConfirmToSend, enforceDailyCap } from "../lib/security/policyGuards";
+import { effectivePerMinuteCap, enforceConfirmToSend, enforceDailyCap, enforceHourlyCap } from "../lib/security/policyGuards";
 import { enforcePerMinuteCap, nextBackoffDate } from "../lib/security/rateLimitGuards";
 import { DemoAdapter } from "../lib/integration/adapters/demoAdapter";
 import { XAdapter } from "../lib/integration/adapters/xAdapter";
 import { RedditAdapter } from "../lib/integration/adapters/redditAdapter";
-import { CompanionApiClient } from "../lib/integration/companionApiClient";
 import type { IntegrationAdapter } from "../lib/integration/adapters/types";
 import type { Id } from "../types/entities";
 import { publishWorkerEvent } from "./router";
 
 const EXECUTION_BATCH_SIZE = 5;
 
-function adapterFor(platform: "x" | "reddit", mode: "demo" | "api", baseUrl: string): IntegrationAdapter {
+function adapterFor(platform: "x" | "reddit", mode: "demo" | "browser_native"): IntegrationAdapter {
   if (mode === "demo") {
     return new DemoAdapter();
   }
-  const client = new CompanionApiClient(baseUrl);
   if (platform === "x") {
-    return new XAdapter(client);
+    return new XAdapter();
   }
-  return new RedditAdapter(client);
+  return new RedditAdapter();
 }
 
 function hashMessage(input: string): string {
@@ -116,10 +114,15 @@ export async function processQueueTick(): Promise<void> {
       continue;
     }
     const alreadySentToday = await runRepo.countSentToday(campaign.id);
+    const alreadySentLastHour = await runRepo.countSentLastHour(campaign.id);
     try {
       enforceConfirmToSend(campaign);
       enforceDailyCap(campaign, alreadySentToday, settings);
-      enforcePerMinuteCap(minuteWindowCount, settings);
+      enforceHourlyCap(alreadySentLastHour, settings, alreadySentToday);
+      enforcePerMinuteCap(minuteWindowCount, {
+        ...settings,
+        perMinuteCap: effectivePerMinuteCap(settings, alreadySentToday)
+      });
       if (action.actionType === "warmup_like") {
         await runRepo.update(run.id, { status: "warming" });
       } else {
@@ -170,7 +173,7 @@ export async function processQueueTick(): Promise<void> {
         }
       }
 
-      const adapter = adapterFor(campaign.platform, settings.integrationMode, settings.companionApiBaseUrl);
+      const adapter = adapterFor(campaign.platform, settings.integrationMode);
       const result = await adapter.dispatch({
         platform: campaign.platform,
         actionType: executing.actionType,

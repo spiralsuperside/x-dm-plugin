@@ -8,11 +8,14 @@ interface Props {
 }
 
 export function SafetySettings({ settings, onSaved }: Props) {
+  const [safeMode, setSafeMode] = useState(true);
   const [dailyHardCap, setDailyHardCap] = useState(50);
+  const [hourlyHardCap, setHourlyHardCap] = useState(12);
   const [perMinuteCap, setPerMinuteCap] = useState(10);
   const [minDelaySec, setMinDelaySec] = useState(25);
   const [maxDelaySec, setMaxDelaySec] = useState(95);
   const [followupDelayMinutes, setFollowupDelayMinutes] = useState(180);
+  const [requireRunStartConfirmation, setRequireRunStartConfirmation] = useState(true);
   const [stopOnRateLimit, setStopOnRateLimit] = useState(true);
   const [messageSimilarityThreshold, setMessageSimilarityThreshold] = useState(0.92);
   const [retentionDays, setRetentionDays] = useState(90);
@@ -22,11 +25,14 @@ export function SafetySettings({ settings, onSaved }: Props) {
     if (!settings) {
       return;
     }
+    setSafeMode(settings.safeMode);
     setDailyHardCap(settings.dailyHardCap);
+    setHourlyHardCap(settings.hourlyHardCap);
     setPerMinuteCap(settings.perMinuteCap);
     setMinDelaySec(settings.minDelaySec);
     setMaxDelaySec(settings.maxDelaySec);
     setFollowupDelayMinutes(settings.followupDelayMinutes);
+    setRequireRunStartConfirmation(settings.requireRunStartConfirmation);
     setStopOnRateLimit(settings.stopOnRateLimit);
     setMessageSimilarityThreshold(settings.messageSimilarityThreshold);
     setRetentionDays(settings.retentionDays);
@@ -38,11 +44,14 @@ export function SafetySettings({ settings, onSaved }: Props) {
     const normalizedMaxDelay = Math.max(normalizedMinDelay, maxDelaySec);
     const response = await sendCommand("settings.update", {
       patch: {
+        safeMode,
         dailyHardCap,
+        hourlyHardCap,
         perMinuteCap,
         minDelaySec: normalizedMinDelay,
         maxDelaySec: normalizedMaxDelay,
         followupDelayMinutes,
+        requireRunStartConfirmation,
         stopOnRateLimit,
         messageSimilarityThreshold,
         retentionDays,
@@ -56,12 +65,25 @@ export function SafetySettings({ settings, onSaved }: Props) {
     <section style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10 }}>
       <h3>Safety</h3>
       <label>
+        Safe mode (ramped limits/delays):
+        <input type="checkbox" checked={safeMode} onChange={(event) => setSafeMode(event.target.checked)} />
+      </label>
+      <label>
         Daily hard cap:
         <input
           type="number"
           min={1}
           value={dailyHardCap}
           onChange={(event) => setDailyHardCap(Number(event.target.value))}
+        />
+      </label>
+      <label>
+        Hourly hard cap:
+        <input
+          type="number"
+          min={1}
+          value={hourlyHardCap}
+          onChange={(event) => setHourlyHardCap(Number(event.target.value))}
         />
       </label>
       <label>
@@ -88,6 +110,14 @@ export function SafetySettings({ settings, onSaved }: Props) {
           min={1}
           value={followupDelayMinutes}
           onChange={(event) => setFollowupDelayMinutes(Number(event.target.value))}
+        />
+      </label>
+      <label>
+        Require run start confirmation:
+        <input
+          type="checkbox"
+          checked={requireRunStartConfirmation}
+          onChange={(event) => setRequireRunStartConfirmation(event.target.checked)}
         />
       </label>
       <label>
