@@ -40,3 +40,47 @@ cmd /c "set npm_config_cache=.npm-cache&& npm run test"
 - This repo is a local demo-first implementation.
 - Browser-native mode is unofficial web automation behavior and depends on platform DOM/UI selectors and active logged-in tab state.
 - Production hardening should add stricter policy controls, comprehensive observability, and optional companion-backend routing for sensitive integrations.
+
+## What The User Must Do (Exact Flow)
+
+1. Install extension locally.
+   - Run build: `cmd /c "set npm_config_cache=.npm-cache&& npm run build"`.
+   - In Chrome: `chrome://extensions` -> enable Developer mode -> Load unpacked -> select `dist/`.
+
+2. Choose integration mode in Options.
+   - `demo`: local simulated dispatch, no real send.
+   - `browser_native`: real dispatch through X/Reddit web UI in the active logged-in tab.
+   - Current build does not expose `api` mode in UI. `companionApiBaseUrl` is stored as legacy/fallback and is not used by the active dispatch path.
+
+3. Configure safety settings in Options.
+   - Set: `safeMode`, `dailyHardCap`, `hourlyHardCap`, `perMinuteCap`, `minDelaySec`, `maxDelaySec`, `followupDelayMinutes`, `requireRunStartConfirmation`, `maxRetries`, `stopOnRateLimit`, `messageSimilarityThreshold`.
+
+4. Be logged in on the target platform in the same browser profile.
+   - X: `https://x.com/*` or `https://twitter.com/*`
+   - Reddit: `https://www.reddit.com/*` or `https://*.reddit.com/*`
+   - Keep browser/computer active while runs execute.
+
+5. Grant runtime permissions when prompted.
+   - `tabs`
+   - Host permissions for active platform page:
+     - `https://x.com/*` or `https://twitter.com/*`
+     - `https://www.reddit.com/*` or `https://*.reddit.com/*`
+
+6. Create a campaign in Sidepanel.
+   - Click `Create X Campaign` or `Create Reddit Campaign`.
+
+7. Add targets.
+   - Paste usernames and click `Import CSV (X)` or `Import CSV (Reddit)`, or
+   - Open a target X/Reddit page and click `Capture From X Page` / `Capture From Reddit Page`.
+
+8. Set template.
+   - Save template text with `{name}` and optional spintax like `{Hey|Hi|Hello}`.
+   - First-message links are blocked by lint rules.
+
+9. Run campaign.
+   - Click `Create Run Queue`.
+   - Open `Runs` tab, copy/type run start code if required, then click `Start`.
+   - Use `Pause`, `Retry`, `Cancel`, or `Emergency Stop Active Runs` as needed.
+
+10. Capture replies.
+   - Click `Ingest X Replies` or `Ingest Reddit Replies` to update reply history on matched contacts.
