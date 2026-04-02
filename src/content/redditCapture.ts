@@ -1,21 +1,25 @@
 import type { CapturedUser } from "./xCapture";
 
-export function captureRedditUsers(): CapturedUser[] {
+function extractRedditUsernames(): string[] {
   const authorLinks = Array.from(document.querySelectorAll("a[href*='/user/']"));
-  const users = new Map<string, CapturedUser>();
+  const users = new Set<string>();
   for (const link of authorLinks) {
     const href = link.getAttribute("href") ?? "";
     const match = href.match(/\/user\/([^\/?#]+)/i);
     if (!match) {
       continue;
     }
-    const username = match[1];
-    if (!users.has(username.toLowerCase())) {
-      users.set(username.toLowerCase(), {
-        username,
-        displayName: (link.textContent ?? "").trim() || username
-      });
-    }
+    users.add(match[1].toLowerCase());
   }
-  return [...users.values()].slice(0, 200);
+  return [...users];
+}
+
+export function captureRedditUsers(): CapturedUser[] {
+  return extractRedditUsernames()
+    .slice(0, 200)
+    .map((username) => ({ username, displayName: username }));
+}
+
+export function captureRedditReplyUsernames(): string[] {
+  return extractRedditUsernames().slice(0, 200);
 }

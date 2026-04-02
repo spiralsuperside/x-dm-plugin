@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type TabId = "canvas" | "contacts" | "runs";
+type TabId = "campaigns" | "contacts" | "runs";
 
 interface UiState {
   activeTab: TabId;
@@ -8,6 +8,6 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  activeTab: "canvas",
+  activeTab: "campaigns",
   setActiveTab: (tab) => set({ activeTab: tab })
 }));

@@ -55,6 +55,7 @@ export interface Contact extends SchemaMeta {
   dedupeKey: string;
   optOut: boolean;
   lastInteractionAt?: string;
+  lastReplyAt?: string;
 }
 
 export interface MessageTemplate extends SchemaMeta {
@@ -72,6 +73,7 @@ export interface Run extends SchemaMeta {
   correlationId: string;
   startedAt?: string;
   finishedAt?: string;
+  rateLimitCooldownUntil?: string;
   summary: {
     queued: number;
     sent: number;
@@ -103,6 +105,7 @@ export interface ContactHistory extends SchemaMeta {
   contactId: Id;
   campaignId: Id;
   lastSentAt?: string;
+  lastMessageHash?: string;
   totalSent: number;
   totalReplies: number;
   blockedReason?: string;
@@ -134,6 +137,7 @@ export interface AnalyticsEvent extends SchemaMeta {
     | "action_sent"
     | "action_skipped"
     | "action_failed"
+    | "reply_captured"
     | "rate_limited"
     | "run_completed"
     | "run_failed";
@@ -146,7 +150,12 @@ export interface RuntimeSettings {
   companionApiBaseUrl: string;
   dailyHardCap: number;
   perMinuteCap: number;
+  minDelaySec: number;
+  maxDelaySec: number;
   warmupEnabled: boolean;
   followupDelayMinutes: number;
+  stopOnRateLimit: boolean;
+  messageSimilarityThreshold: number;
+  retentionDays: number;
   maxRetries: number;
 }

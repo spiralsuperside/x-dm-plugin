@@ -12,6 +12,7 @@ export function CampaignControls() {
     createCampaign,
     importCsv,
     captureTargets,
+    captureReplies,
     saveTemplate,
     renderPreview,
     createRun
@@ -21,6 +22,7 @@ export function CampaignControls() {
     <div className="panel-grid">
       <section className="card">
         <h3>Create Campaign</h3>
+        <p>Set platform, capture targets, then queue a paced DM run.</p>
         <input
           value={campaignNameInput}
           onChange={(event) => setCampaignNameInput(event.target.value)}
@@ -34,6 +36,7 @@ export function CampaignControls() {
 
       <section className="card">
         <h3>Targets</h3>
+        <p>Paste usernames (CSV/TXT style) or capture from the current page.</p>
         <textarea
           value={csvInput}
           onChange={(event) => setCsvInput(event.target.value)}
@@ -47,10 +50,15 @@ export function CampaignControls() {
           <button onClick={() => void captureTargets("x")}>Capture From X Page</button>
           <button onClick={() => void captureTargets("reddit")}>Capture From Reddit Page</button>
         </div>
+        <div className="row">
+          <button onClick={() => void captureReplies("x")}>Ingest X Replies</button>
+          <button onClick={() => void captureReplies("reddit")}>Ingest Reddit Replies</button>
+        </div>
       </section>
 
       <section className="card">
         <h3>Template</h3>
+        <p>Use {'{name}'} and spintax like {'{Hey|Hi|Hello}'} for safe variation.</p>
         <textarea
           value={templateInput}
           onChange={(event) => setTemplateInput(event.target.value)}
@@ -66,6 +74,7 @@ export function CampaignControls() {
       <section className="card">
         <h3>Run</h3>
         <button onClick={() => void createRun()}>Create Run Queue</button>
+        <p>Start, pause, retry, and cancel from the Runs tab.</p>
       </section>
     </div>
   );

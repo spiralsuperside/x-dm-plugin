@@ -7,7 +7,7 @@ import { runRepo } from "../lib/storage/repositories/runRepo";
 import { eventRepo } from "../lib/storage/repositories/eventRepo";
 import { chromeSettingsStore } from "../lib/storage/chromeSettingsStore";
 import { renderTemplate } from "../lib/graph/coalescing";
-import { ensureOptionalPermission } from "../lib/security/permissions";
+import { ensureOptionalHostPermission, ensureOptionalPermission } from "../lib/security/permissions";
 import type { CommandPayloadMap, CommandResponseMap, CommandType, EventEnvelopeV1 } from "../lib/messaging/contracts.v1";
 import { ensureQueueAlarm } from "./queueScheduler";
 
@@ -17,6 +17,26 @@ type CommandHandler<TType extends CommandType> = (
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function deterministicDelaySeconds(seedSource: string, minSec: number, maxSec: number): number {
+  const min = Math.max(0, minSec);
+  const max = Math.max(min, maxSec);
+  if (min === max) {
+    return min;
+  }
+  let hash = 2166136261;
+  for (let index = 0; index < seedSource.length; index += 1) {
+    hash ^= seedSource.charCodeAt(index);
+    hash +=
+      (hash << 1) +
+      (hash << 4) +
+      (hash << 7) +
+      (hash << 8) +
+      (hash << 24);
+  }
+  const normalized = (hash >>> 0) / 4294967295;
+  return Math.floor(min + normalized * (max - min));
 }
 
 const handlers: { [T in CommandType]: CommandHandler<T> } = {
@@ -57,12 +77,74 @@ const handlers: { [T in CommandType]: CommandHandler<T> } = {
     if (!tab?.id) {
       return { imported: 0 };
     }
+    const url = tab.url ?? "";
+    const hostPattern =
+      payload.platform === "x"
+        ? url.includes("twitter.com")
+          ? "https://twitter.com/*"
+          : "https://x.com/*"
+        : url.includes("www.reddit.com")
+          ? "https://www.reddit.com/*"
+          : "https://*.reddit.com/*";
+    const hasHostPermission = await ensureOptionalHostPermission(hostPattern);
+    if (!hasHostPermission) {
+      await publishWorkerEvent("permission.required", { permission: hostPattern });
+      return { imported: 0 };
+    }
     const response = (await chrome.tabs.sendMessage(tab.id, {
       type: "capture.targets",
       platform: payload.platform
     })) as { users?: Array<{ id?: string; username: string; displayName?: string }> } | undefined;
     const imported = await contactRepo.addCaptured(payload.campaignId, payload.platform, response?.users ?? []);
     return { imported };
+  },
+  "replies.capture.start": async (payload) => {
+    const hasTabs = await ensureOptionalPermission("tabs");
+    if (!hasTabs) {
+      await publishWorkerEvent("permission.required", { permission: "tabs" });
+      return { matchedContacts: 0, updatedReplies: 0 };
+    }
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) {
+      return { matchedContacts: 0, updatedReplies: 0 };
+    }
+    const url = tab.url ?? "";
+    const hostPattern =
+      payload.platform === "x"
+        ? url.includes("twitter.com")
+          ? "https://twitter.com/*"
+          : "https://x.com/*"
+        : url.includes("www.reddit.com")
+          ? "https://www.reddit.com/*"
+          : "https://*.reddit.com/*";
+    const hasHostPermission = await ensureOptionalHostPermission(hostPattern);
+    if (!hasHostPermission) {
+      await publishWorkerEvent("permission.required", { permission: hostPattern });
+      return { matchedContacts: 0, updatedReplies: 0 };
+    }
+
+    const response = (await chrome.tabs.sendMessage(tab.id, {
+      type: "capture.replies",
+      platform: payload.platform
+    })) as { usernames?: string[] } | undefined;
+
+    const ingest = await contactRepo.ingestReplies(payload.campaignId, payload.platform, response?.usernames ?? []);
+    if (ingest.updatedReplies > 0) {
+      const runCorrelationId = crypto.randomUUID();
+      await eventRepo.log({
+        runId: `reply-ingest:${payload.campaignId}`,
+        campaignId: payload.campaignId,
+        type: "reply_captured",
+        correlationId: runCorrelationId,
+        data: {
+          matchedContacts: ingest.matchedContacts,
+          updatedReplies: ingest.updatedReplies,
+          platform: payload.platform
+        }
+      });
+      await publishWorkerEvent("storage.entity.changed", { entity: "contact", id: payload.campaignId });
+    }
+    return ingest;
   },
 
   "template.upsert": async (payload) => {
@@ -95,6 +177,7 @@ const handlers: { [T in CommandType]: CommandHandler<T> } = {
       renderedMessage: string;
       delayMinutes: number;
     }> = [];
+    let delaySecondsAccumulator = 0;
     for (const contact of contacts) {
       const alreadySent = await contactRepo.hasPriorSend(payload.campaignId, contact.id);
       if (alreadySent || contact.optOut) {
@@ -109,20 +192,30 @@ const handlers: { [T in CommandType]: CommandHandler<T> } = {
           contactId: contact.id,
           actionType: "warmup_like",
           renderedMessage: "",
-          delayMinutes: 0
+          delayMinutes: Math.floor(delaySecondsAccumulator / 60)
         });
       }
+      delaySecondsAccumulator += deterministicDelaySeconds(
+        `${contact.id}:${correlationId}`,
+        settings.minDelaySec,
+        settings.maxDelaySec
+      );
       actions.push({
         contactId: contact.id,
         actionType: "send_dm",
         renderedMessage: rendered,
-        delayMinutes: settings.warmupEnabled ? 1 : 0
+        delayMinutes: Math.floor(delaySecondsAccumulator / 60)
       });
+      delaySecondsAccumulator += deterministicDelaySeconds(
+        `${contact.id}:followup:${correlationId}`,
+        settings.minDelaySec,
+        settings.maxDelaySec
+      );
       actions.push({
         contactId: contact.id,
         actionType: "follow_up",
         renderedMessage: `Following up in case you missed this, ${contact.displayName ?? contact.username}.`,
-        delayMinutes: settings.followupDelayMinutes
+        delayMinutes: settings.followupDelayMinutes + Math.floor(delaySecondsAccumulator / 60)
       });
     }
 
@@ -148,7 +241,7 @@ const handlers: { [T in CommandType]: CommandHandler<T> } = {
   "run.start": async (payload) => {
     await ensureQueueAlarm();
     const run = await runRepo.update(payload.runId, {
-      status: "running",
+      status: "precheck",
       startedAt: nowIso()
     });
     await publishWorkerEvent("run.status.changed", { runId: run.id, status: run.status });
@@ -160,9 +253,19 @@ const handlers: { [T in CommandType]: CommandHandler<T> } = {
     return { run };
   },
   "run.cancel": async (payload) => {
+    await runRepo.cancelPendingActionsForRun(payload.runId);
     const run = await runRepo.update(payload.runId, { status: "canceled", finishedAt: nowIso() });
     await publishWorkerEvent("run.status.changed", { runId: run.id, status: run.status });
     return { run };
+  },
+  "run.retry": async (payload) => {
+    const requeuedActions = await runRepo.retryErroredActions(payload.runId);
+    const run = await runRepo.update(payload.runId, {
+      status: "precheck",
+      finishedAt: undefined
+    });
+    await publishWorkerEvent("run.status.changed", { runId: run.id, status: run.status });
+    return { run, requeuedActions };
   },
   "run.list": async (payload) => {
     const runs = await runRepo.list(payload.campaignId);

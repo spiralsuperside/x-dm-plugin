@@ -97,6 +97,28 @@ export const runRepo = {
       .slice(0, limit);
   },
 
+  async claimDueActions(limit: number): Promise<RunAction[]> {
+    const now = nowIso();
+    return db.transaction("rw", db.runActions, async () => {
+      const pending = await db.runActions.where("status").equals("pending").toArray();
+      const due = pending
+        .filter((row) => row.scheduledAt <= now)
+        .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))
+        .slice(0, limit);
+      const claimed: RunAction[] = [];
+      for (const row of due) {
+        const updated: RunAction = {
+          ...row,
+          status: "executing",
+          updatedAt: now
+        };
+        await db.runActions.put(updated);
+        claimed.push(updated);
+      }
+      return claimed;
+    });
+  },
+
   async markActionExecuting(actionId: Id): Promise<RunAction> {
     const existing = await db.runActions.get(actionId);
     if (!existing) {
@@ -156,5 +178,49 @@ export const runRepo = {
 
   async listByRun(runId: Id): Promise<RunAction[]> {
     return db.runActions.where("runId").equals(runId).sortBy("sequence");
+  },
+
+  async listRecentSentMessages(campaignId: Id, limit: number): Promise<string[]> {
+    const actions = await db.runActions.where("campaignId").equals(campaignId).toArray();
+    return actions
+      .filter((action) => action.actionType === "send_dm" && action.status === "done")
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, limit)
+      .map((action) => action.renderedMessage);
+  },
+
+  async retryErroredActions(runId: Id): Promise<number> {
+    const actions = await db.runActions.where("runId").equals(runId).toArray();
+    const errored = actions.filter((action) => action.status === "error");
+    if (errored.length === 0) {
+      return 0;
+    }
+    const now = nowIso();
+    for (const action of errored) {
+      await db.runActions.put({
+        ...action,
+        status: "pending",
+        errorCode: undefined,
+        retryClass: "none",
+        nextRetryAt: undefined,
+        scheduledAt: now,
+        updatedAt: now
+      });
+    }
+    return errored.length;
+  },
+
+  async cancelPendingActionsForRun(runId: Id): Promise<number> {
+    const actions = await db.runActions.where("runId").equals(runId).toArray();
+    const cancelable = actions.filter((action) => action.status === "pending" || action.status === "executing");
+    const now = nowIso();
+    for (const action of cancelable) {
+      await db.runActions.put({
+        ...action,
+        status: "canceled",
+        updatedAt: now
+      });
+    }
+    return cancelable.length;
   }
 };

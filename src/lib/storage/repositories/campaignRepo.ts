@@ -18,7 +18,7 @@ export const campaignRepo = {
       id: crypto.randomUUID(),
       name: input.name,
       platform: input.platform,
-      status: "draft",
+      status: "active",
       dailySendCap: input.dailySendCap ?? 50,
       requiresConfirmBeforeSend: input.requiresConfirmBeforeSend ?? true,
       schemaVersion: 1,

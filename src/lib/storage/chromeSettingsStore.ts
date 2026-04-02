@@ -7,8 +7,13 @@ export const defaultSettings: RuntimeSettings = {
   companionApiBaseUrl: "http://localhost:8787",
   dailyHardCap: 50,
   perMinuteCap: 10,
+  minDelaySec: 25,
+  maxDelaySec: 95,
   warmupEnabled: true,
   followupDelayMinutes: 180,
+  stopOnRateLimit: true,
+  messageSimilarityThreshold: 0.92,
+  retentionDays: 90,
   maxRetries: 3
 };
 
@@ -21,7 +26,14 @@ export const chromeSettingsStore = {
 
   async set(patch: Partial<RuntimeSettings>): Promise<RuntimeSettings> {
     const current = await this.get();
-    const next = { ...current, ...patch };
+    const merged = { ...current, ...patch };
+    const next: RuntimeSettings = {
+      ...merged,
+      minDelaySec: Math.max(0, merged.minDelaySec),
+      maxDelaySec: Math.max(Math.max(0, merged.minDelaySec), merged.maxDelaySec),
+      messageSimilarityThreshold: Math.max(0.5, Math.min(1, merged.messageSimilarityThreshold)),
+      retentionDays: Math.max(1, merged.retentionDays)
+    };
     await chrome.storage.local.set({ [SETTINGS_KEY]: next });
     return next;
   }

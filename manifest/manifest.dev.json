@@ -18,12 +18,17 @@
     "page": "src/options/index.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "alarms", "sidePanel"],
+  "permissions": ["storage", "alarms", "sidePanel", "scripting"],
   "optional_permissions": ["activeTab", "tabs"],
-  "optional_host_permissions": ["https://x.com/*", "https://*.reddit.com/*"],
+  "optional_host_permissions": [
+    "https://x.com/*",
+    "https://twitter.com/*",
+    "https://www.reddit.com/*",
+    "https://*.reddit.com/*"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://x.com/*", "https://*.reddit.com/*"],
+      "matches": ["https://x.com/*", "https://twitter.com/*", "https://www.reddit.com/*", "https://*.reddit.com/*"],
       "js": ["src/content/bridge.ts"],
       "run_at": "document_idle"
     }

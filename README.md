@@ -1,33 +1,40 @@
-# x-dm-plugin
+# x-dm-plugin (DM Dad Local Demo)
 
-Chrome Extension (Manifest V3) for node-based image ideation workflows.
+Local-first Chrome Extension (Manifest V3) for X (Twitter) and Reddit DM outreach workflows.
 
-## What It Does
+## What This Build Covers
 
-- Provides a browser-native canvas flow for visual idea exploration.
-- Supports node kinds such as `reference_image`, `prompt`, and `generated_image`.
-- Supports branching and multiple generated variants from prompt chains.
-- Keeps local demo setup simple and secure.
+- Campaign creation for X and Reddit.
+- Target import from CSV/TXT-style lists.
+- Target capture from active X/Reddit pages.
+- Reply ingestion from active X/Reddit pages to update local contact reply history.
+- Template rendering with `{name}` personalization and spintax.
+- Run queue orchestration with warm-up, send, and follow-up actions.
+- Safety controls: daily/per-minute caps, natural delays, message-similarity linting, first-message link blocking, and rate-limit cooldown handling.
+- Local persistence with IndexedDB + `chrome.storage.local`.
 
-## Project Structure
+## Architecture
 
-- `src/background/` MV3 service worker orchestration and runtime messaging
-- `src/sidepanel/` Main node canvas UI (React Flow)
-- `src/popup/` Quick actions and status
-- `src/options/` Extension settings
-- `src/lib/` Shared libraries (messaging, storage, graph, integration, security)
-- `src/types/` Shared TypeScript types
-- `tests/` Unit/integration/e2e tests
+- `src/background/`: queue orchestration, alarm-driven execution, runtime command router.
+- `src/sidepanel/`: primary campaign and run management UI.
+- `src/popup/`: quick open + recent run status.
+- `src/options/`: integration and safety settings.
+- `src/content/`: on-page target capture for X/Reddit.
+- `src/lib/messaging/`: typed command/event contracts.
+- `src/lib/storage/`: Dexie repositories + settings store.
+- `src/lib/security/`: policy guards, rate limits, sanitization, redaction, message-risk linting.
 
-## Development
-
-Windows-friendly commands:
+## Local Development
 
 ```bat
 cmd /c "set npm_config_cache=.npm-cache&& npm install"
 cmd /c "set npm_config_cache=.npm-cache&& npm run dev"
 cmd /c "set npm_config_cache=.npm-cache&& npm run build"
-cmd /c "set npm_config_cache=.npm-cache&& npm run test"
 cmd /c "set npm_config_cache=.npm-cache&& npm run typecheck"
-cmd /c "set npm_config_cache=.npm-cache&& npm run lint"
+cmd /c "set npm_config_cache=.npm-cache&& npm run test"
 ```
+
+## Notes
+
+- This repo is a local demo-first implementation.
+- Production hardening should add stricter policy controls, comprehensive observability, and optional companion-backend routing for sensitive integrations.

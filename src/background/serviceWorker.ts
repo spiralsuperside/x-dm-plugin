@@ -8,3 +8,9 @@ registerAlarmHandlers();
 chrome.runtime.onInstalled.addListener(async () => {
   await ensureQueueAlarm();
 });
+
+chrome.runtime.onStartup.addListener(async () => {
+  await ensureQueueAlarm();
+});
+
+void ensureQueueAlarm();

@@ -96,7 +96,7 @@ export const contactRepo = {
     return Boolean(history?.totalSent && history.totalSent > 0);
   },
 
-  async markSent(campaignId: Id, contactId: Id): Promise<void> {
+  async markSent(campaignId: Id, contactId: Id, messageHash?: string): Promise<void> {
     const existing = await db.contactHistory.where("[campaignId+contactId]").equals([campaignId, contactId]).first();
     const now = nowIso();
     if (!existing) {
@@ -107,6 +107,7 @@ export const contactRepo = {
         totalSent: 1,
         totalReplies: 0,
         lastSentAt: now,
+        lastMessageHash: messageHash,
         schemaVersion: 1,
         createdAt: now,
         updatedAt: now
@@ -118,7 +119,74 @@ export const contactRepo = {
       ...existing,
       totalSent: existing.totalSent + 1,
       lastSentAt: now,
+      lastMessageHash: messageHash ?? existing.lastMessageHash,
       updatedAt: now
     });
+  },
+
+  async markReplied(campaignId: Id, contactId: Id): Promise<void> {
+    const existing = await db.contactHistory.where("[campaignId+contactId]").equals([campaignId, contactId]).first();
+    const now = nowIso();
+    if (!existing) {
+      const history: ContactHistory = {
+        id: crypto.randomUUID(),
+        campaignId,
+        contactId,
+        totalSent: 0,
+        totalReplies: 1,
+        schemaVersion: 1,
+        createdAt: now,
+        updatedAt: now
+      };
+      await db.contactHistory.add(history);
+    } else {
+      await db.contactHistory.put({
+        ...existing,
+        totalReplies: existing.totalReplies + 1,
+        updatedAt: now
+      });
+    }
+
+    const contact = await db.contacts.get(contactId);
+    if (contact) {
+      await db.contacts.put({
+        ...contact,
+        lastInteractionAt: now,
+        lastReplyAt: now,
+        updatedAt: now
+      });
+    }
+  },
+
+  async ingestReplies(
+    campaignId: Id,
+    platform: Platform,
+    usernames: string[]
+  ): Promise<{ matchedContacts: number; updatedReplies: number }> {
+    const contacts = await db.contacts.where("campaignId").equals(campaignId).toArray();
+    const lookup = new Map<string, Contact>();
+    for (const contact of contacts) {
+      lookup.set(contact.username.toLowerCase(), contact);
+      lookup.set(contact.platformUserId.toLowerCase(), contact);
+    }
+
+    const uniqueUsernames = [...new Set(usernames.map((value) => value.trim().replace(/^@/, "").toLowerCase()).filter(Boolean))];
+    let matchedContacts = 0;
+    let updatedReplies = 0;
+    const touched = new Set<string>();
+    for (const username of uniqueUsernames) {
+      const match = lookup.get(username);
+      if (!match || match.platform !== platform) {
+        continue;
+      }
+      matchedContacts += 1;
+      if (touched.has(match.id)) {
+        continue;
+      }
+      touched.add(match.id);
+      await this.markReplied(campaignId, match.id);
+      updatedReplies += 1;
+    }
+    return { matchedContacts, updatedReplies };
   }
 };

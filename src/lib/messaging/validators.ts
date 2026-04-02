@@ -9,6 +9,7 @@ const commandTypes: CommandType[] = [
   "targets.import.csv",
   "targets.list",
   "target.capture.start",
+  "replies.capture.start",
   "template.upsert",
   "template.get",
   "template.preview.render",
@@ -16,6 +17,7 @@ const commandTypes: CommandType[] = [
   "run.start",
   "run.pause",
   "run.cancel",
+  "run.retry",
   "run.list",
   "settings.get",
   "settings.update"

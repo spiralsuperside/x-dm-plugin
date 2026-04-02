@@ -21,11 +21,14 @@ interface CampaignState {
   selectCampaign: (campaignId: string) => Promise<void>;
   importCsv: (platform: "x" | "reddit") => Promise<void>;
   captureTargets: (platform: "x" | "reddit") => Promise<void>;
+  captureReplies: (platform: "x" | "reddit") => Promise<void>;
   saveTemplate: () => Promise<void>;
   renderPreview: (name: string) => Promise<void>;
   createRun: () => Promise<void>;
   startRun: (runId: string) => Promise<void>;
   pauseRun: (runId: string) => Promise<void>;
+  cancelRun: (runId: string) => Promise<void>;
+  retryRun: (runId: string) => Promise<void>;
 }
 
 export const useCampaignStore = create<CampaignState>((set, get) => ({
@@ -101,6 +104,18 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
     await get().selectCampaign(campaignId);
   },
 
+  captureReplies: async (platform) => {
+    const campaignId = get().selectedCampaignId;
+    if (!campaignId) {
+      return;
+    }
+    await sendCommand("replies.capture.start", {
+      campaignId,
+      platform
+    });
+    await get().selectCampaign(campaignId);
+  },
+
   saveTemplate: async () => {
     const campaignId = get().selectedCampaignId;
     if (!campaignId) {
@@ -143,6 +158,22 @@ export const useCampaignStore = create<CampaignState>((set, get) => ({
 
   pauseRun: async (runId) => {
     await sendCommand("run.pause", { runId });
+    const campaignId = get().selectedCampaignId;
+    if (campaignId) {
+      await get().selectCampaign(campaignId);
+    }
+  },
+
+  cancelRun: async (runId) => {
+    await sendCommand("run.cancel", { runId });
+    const campaignId = get().selectedCampaignId;
+    if (campaignId) {
+      await get().selectCampaign(campaignId);
+    }
+  },
+
+  retryRun: async (runId) => {
+    await sendCommand("run.retry", { runId });
     const campaignId = get().selectedCampaignId;
     if (campaignId) {
       await get().selectCampaign(campaignId);

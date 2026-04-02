@@ -16,7 +16,7 @@ export default function App() {
 
   return (
     <main style={{ maxWidth: 760, margin: "24px auto", display: "grid", gap: 12, fontFamily: "Segoe UI, Tahoma, sans-serif" }}>
-      <h1>X DM Plugin Settings</h1>
+      <h1>DM Dad Local Settings</h1>
       <IntegrationSettings settings={settings} onSaved={setSettings} />
       <SafetySettings settings={settings} onSaved={setSettings} />
     </main>

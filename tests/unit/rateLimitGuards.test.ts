@@ -14,8 +14,13 @@ describe("rateLimitGuards", () => {
         companionApiBaseUrl: "http://localhost",
         dailyHardCap: 50,
         perMinuteCap: 10,
+        minDelaySec: 25,
+        maxDelaySec: 95,
         warmupEnabled: true,
         followupDelayMinutes: 60,
+        stopOnRateLimit: true,
+        messageSimilarityThreshold: 0.92,
+        retentionDays: 90,
         maxRetries: 3
       })
     ).toThrow();

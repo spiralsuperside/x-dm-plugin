@@ -4,24 +4,29 @@ export interface CapturedUser {
   displayName?: string;
 }
 
-export function captureXCommenters(): CapturedUser[] {
+function extractXUsernames(): string[] {
   const anchorNodes = Array.from(document.querySelectorAll("a[href^='/' i]"));
-  const users = new Map<string, CapturedUser>();
+  const usernames = new Set<string>();
   for (const node of anchorNodes) {
     const href = node.getAttribute("href") ?? "";
     if (!href.startsWith("/") || href.includes("/status/")) {
       continue;
     }
-    const username = href.replace("/", "").trim();
+    const username = href.replace("/", "").trim().replace(/^@/, "");
     if (!username || username.includes("/")) {
       continue;
     }
-    if (!users.has(username.toLowerCase())) {
-      users.set(username.toLowerCase(), {
-        username,
-        displayName: (node.textContent ?? "").trim() || username
-      });
-    }
+    usernames.add(username.toLowerCase());
   }
-  return [...users.values()].slice(0, 200);
+  return [...usernames];
+}
+
+export function captureXCommenters(): CapturedUser[] {
+  return extractXUsernames()
+    .slice(0, 200)
+    .map((username) => ({ username, displayName: username }));
+}
+
+export function captureXReplyUsernames(): string[] {
+  return extractXUsernames().slice(0, 200);
 }

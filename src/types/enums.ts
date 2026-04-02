@@ -4,11 +4,13 @@ export type CampaignStatus = "draft" | "active" | "archived";
 
 export type RunStatus =
   | "queued"
-  | "running"
+  | "precheck"
+  | "warming"
+  | "sending"
   | "paused"
-  | "blocked"
+  | "rate_limited"
   | "failed"
-  | "completed"
+  | "sent"
   | "canceled";
 
 export type ActionType = "warmup_like" | "send_dm" | "follow_up";

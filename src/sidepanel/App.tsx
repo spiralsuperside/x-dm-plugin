@@ -21,9 +21,9 @@ export default function App() {
   return (
     <main className="container">
       <header className="header">
-        <h1>X DM Plugin</h1>
+        <h1>DM Dad Local</h1>
         <div className="row">
-          <button onClick={() => setActiveTab("canvas")}>Canvas</button>
+          <button onClick={() => setActiveTab("campaigns")}>Campaigns</button>
           <button onClick={() => setActiveTab("contacts")}>Contacts</button>
           <button onClick={() => setActiveTab("runs")}>Runs</button>
         </div>
@@ -44,7 +44,7 @@ export default function App() {
         </div>
       </section>
 
-      {activeTab === "canvas" ? <CampaignCanvasPage /> : null}
+      {activeTab === "campaigns" ? <CampaignCanvasPage /> : null}
       {activeTab === "contacts" ? <ContactsPage /> : null}
       {activeTab === "runs" ? <RunsPage /> : null}
     </main>

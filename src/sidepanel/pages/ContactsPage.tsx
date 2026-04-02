@@ -10,6 +10,7 @@ export function ContactsPage() {
           <strong>@{contact.username}</strong>
           <p>Platform: {contact.platform}</p>
           <p>Opt out: {contact.optOut ? "yes" : "no"}</p>
+          <p>Last reply: {contact.lastReplyAt ? new Date(contact.lastReplyAt).toLocaleString() : "none"}</p>
         </article>
       ))}
     </div>

@@ -9,6 +9,7 @@ export type CommandType =
   | "targets.import.csv"
   | "targets.list"
   | "target.capture.start"
+  | "replies.capture.start"
   | "template.upsert"
   | "template.get"
   | "template.preview.render"
@@ -16,6 +17,7 @@ export type CommandType =
   | "run.start"
   | "run.pause"
   | "run.cancel"
+  | "run.retry"
   | "run.list"
   | "settings.get"
   | "settings.update";
@@ -58,6 +60,7 @@ export type CommandPayloadMap = {
   "targets.import.csv": { campaignId: Id; csvText: string; platform: "x" | "reddit" };
   "targets.list": { campaignId: Id };
   "target.capture.start": { campaignId: Id; platform: "x" | "reddit" };
+  "replies.capture.start": { campaignId: Id; platform: "x" | "reddit" };
   "template.upsert": {
     campaignId: Id;
     name: string;
@@ -70,6 +73,7 @@ export type CommandPayloadMap = {
   "run.start": { runId: Id };
   "run.pause": { runId: Id };
   "run.cancel": { runId: Id };
+  "run.retry": { runId: Id };
   "run.list": { campaignId?: Id };
   "settings.get": {};
   "settings.update": { patch: Partial<RuntimeSettings> };
@@ -84,6 +88,7 @@ export type CommandResponseMap = {
   "targets.import.csv": { imported: number; deduped: number };
   "targets.list": { contacts: Contact[] };
   "target.capture.start": { imported: number };
+  "replies.capture.start": { matchedContacts: number; updatedReplies: number };
   "template.upsert": { template: MessageTemplate };
   "template.get": { template: MessageTemplate | null };
   "template.preview.render": { rendered: string };
@@ -91,6 +96,7 @@ export type CommandResponseMap = {
   "run.start": { run: Run };
   "run.pause": { run: Run };
   "run.cancel": { run: Run };
+  "run.retry": { run: Run; requeuedActions: number };
   "run.list": { runs: Run[] };
   "settings.get": { settings: RuntimeSettings };
   "settings.update": { settings: RuntimeSettings };
