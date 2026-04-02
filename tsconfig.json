@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM"],
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "types": ["chrome", "vite/client"],
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "manifest", "vite.config.ts", "vitest.config.ts", "tests"]
+}

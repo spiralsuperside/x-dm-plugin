@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "X DM Plugin (Local Demo)",
+  "version": "0.1.0",
+  "description": "Local-first DM workflow extension for X and Reddit.",
+  "action": {
+    "default_title": "X DM Plugin",
+    "default_popup": "src/popup/index.html"
+  },
+  "background": {
+    "service_worker": "src/background/serviceWorker.ts",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "options_ui": {
+    "page": "src/options/index.html",
+    "open_in_tab": true
+  },
+  "permissions": ["storage", "alarms", "sidePanel"],
+  "optional_permissions": ["activeTab", "tabs"],
+  "optional_host_permissions": ["https://x.com/*", "https://*.reddit.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://x.com/*", "https://*.reddit.com/*"],
+      "js": ["src/content/bridge.ts"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  color: #1a1a1a;
+  background: linear-gradient(180deg, #f7fbff 0%, #eef6ff 100%);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #d9e7ff;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.panel-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row.wrap {
+  flex-wrap: wrap;
+}
+
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+button {
+  border: 1px solid #8cb3ff;
+  background: #f4f8ff;
+  color: #17408b;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+button.active {
+  background: #17408b;
+  color: #fff;
+}
+
+textarea,
+input {
+  width: 100%;
+  border: 1px solid #c5d8ff;
+  border-radius: 8px;
+  padding: 8px;
+  font: inherit;
+}
+
+textarea {
+  min-height: 80px;
+}
+
+.preview {
+  margin: 8px 0 0;
+  padding: 8px;
+  border-radius: 6px;
+  background: #f8fbff;
+}
